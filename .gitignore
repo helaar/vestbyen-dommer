@@ -2,4 +2,4 @@
 target/
 .idea/
 *.iml
-src/config/matchwatch.conf
+src/config/test.conf
