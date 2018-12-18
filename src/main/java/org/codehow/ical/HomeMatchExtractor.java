@@ -28,6 +28,7 @@ public class HomeMatchExtractor {
     private final Pattern eventRegexp = Pattern.compile("(?s)BEGIN:VEVENT(.*?)END:VEVENT");
     private final Pattern propertyRegexp = Pattern.compile("(?s)(.*?)[:](.*?)\\n");
     private final Pattern homeRegexp;
+    private final static String userAgent = "Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36";
 
     private final String teamId;
 
@@ -40,15 +41,17 @@ public class HomeMatchExtractor {
     }
 
     public Team getMatches(WebTarget getCalendarTarget) {
-        final Response resp = getCalendarTarget
-            .queryParam("teamId", teamId)
-            .request().get();
+        final WebTarget calTarget = getCalendarTarget.queryParam("teamId", teamId);
+
+        final Response resp = calTarget
+            .request().header("User-Agent", userAgent).get();
 
         if (resp.getStatus() == 200)
             return extractMatches(resp.readEntity(String.class));
 
         else
-            throw new RuntimeException(resp.getStatus() + ": " + resp.getStatusInfo().getReasonPhrase());
+            throw new RuntimeException(calTarget.getUri().toString()+ " - "+resp.getStatus() + ": " +
+                resp.getStatusInfo().getReasonPhrase() );
     }
 
     private Team extractMatches(String iCal) {

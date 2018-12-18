@@ -16,6 +16,7 @@
         <jersey.version>2.25.1</jersey.version>
         <slf4j.version>1.7.7</slf4j.version>
         <javax.el.version>3.0.0</javax.el.version>
+        <module>build</module>
     </properties>
 
     <dependencies>
@@ -99,7 +100,7 @@
                 </executions>
                 <configuration>
                     <!-- krever at det finnes en src/config/${applicationName}.conf -->
-                    <applicationName>matchwatch</applicationName>
+                    <applicationName>${module}</applicationName>
                     <container>bootstrap</container>
                     <bootstrapPlugins>
                         <plugin>

@@ -27,13 +27,13 @@ public class MatchWatcherPlugin {
 
 
     private final HomeMatchExtractor[] extractors = new HomeMatchExtractor[]{
-        new HomeMatchExtractor("Vestbyen", "23876"),
-        new HomeMatchExtractor("Vestbyen 2", "24350"),
-        new HomeMatchExtractor("Vestbyen", "24353"),
-        new HomeMatchExtractor("Vestbyen 2", "24659"),
-        new HomeMatchExtractor("Vestbyen", "24548"),
-        new HomeMatchExtractor("Vestbyen 2", "197765"),
-        new HomeMatchExtractor("Vestbyen", "24656")
+        new HomeMatchExtractor("Vestbyen", "23876"), // G11-1
+        new HomeMatchExtractor("Vestbyen 2", "24350"), // G11-2
+        new HomeMatchExtractor("Vestbyen 2", "24659"), // G12-2
+        new HomeMatchExtractor("Vestbyen", "24548"), // J11-1
+        new HomeMatchExtractor("Vestbyen 2", "197765"), // J11-2
+        new HomeMatchExtractor("Vestbyen", "34562"), // G13-1
+        new HomeMatchExtractor("Vestbyen 2", "198284") // J14-2
     };
 
     public MatchWatcherPlugin(
@@ -62,7 +62,7 @@ public class MatchWatcherPlugin {
         final Notifyer slack = new SlackNotifyer(slackTarget, slackGroup);
 
         final Notifyer[] notifyers = new Notifyer[]{
-            new FacebookNotifyer(facebookTarget, facebookGroup),
+            //new FacebookNotifyer(facebookTarget, facebookGroup),
             slack
         };
 
@@ -73,22 +73,30 @@ public class MatchWatcherPlugin {
 
             final Response resp = facebookTarget.path("me").request().get();
             if (resp.getStatus() != 200)
-                slack.postMessage(format("TOKEN: %d %s\n - %s",
-                    resp.getStatus(), "```"+resp.readEntity(String.class).replaceAll("\"","'")+"```",
+                slack.postMessage(format(":warning: TOKEN: %d %s\n - %s",
+                    resp.getStatus(), "```" + resp.readEntity(String.class).replaceAll("\"", "'") + "```",
                     "https://developers.facebook.com/apps/180021062790223/dashboard/"));
         };
 
         homeMatcCollector = new RouteBuilder() {
             @Override
-            public void configure()  {
+            public void configure() {
+                onException(Throwable.class)
+                    .process(
+                        e -> slack.postMessage(":bangbang: " + e.getProperty(Exchange.EXCEPTION_CAUGHT, Throwable.class).getMessage())
+                    );
+
                 from(matchTimer)
-                    .process(new HomeMatchProcessor(extractors, calendarTarget, database))
+                    .process(new HomeMatchProcessor(extractors, calendarTarget, builder.client().build(), database))
                     .process(new NotificationProcessor(notifyers));
 
-                from(tokenTimer)
-                    .process(tokenChecker);
+                // Kjører ikke mot facebook lenger, trenger ikke å sjekke
+                // from(tokenTimer)
+                //    .process(tokenChecker);
             }
         };
+
+        slack.postMessage(":exclamation: Tjenesten restartet. Poster til https://www.facebook.com/groups/" + facebookGroup);
 
     }
 }

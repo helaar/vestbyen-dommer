@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 
+import javax.ws.rs.client.Client;
 import javax.ws.rs.client.WebTarget;
 import java.io.File;
 import java.util.*;
@@ -21,15 +22,17 @@ public class HomeMatchProcessor implements Processor {
 
     private final HomeMatchExtractor[] extractors;
     private final WebTarget target;
+    private final Client fotballNo;
     private final ObjectMapper om = new ObjectMapper();
 
     private final File database;
 
 
-    public HomeMatchProcessor(HomeMatchExtractor[] extractors, WebTarget target, File database) {
+    public HomeMatchProcessor(HomeMatchExtractor[] extractors, WebTarget target, Client fotballNo, File database) {
         this.extractors = extractors;
         this.target = target;
         this.database = database;
+        this.fotballNo = fotballNo;
     }
 
     @Override
@@ -51,8 +54,8 @@ public class HomeMatchProcessor implements Processor {
             .filter(id -> !teamMap.containsKey(id))
             .map(storedMap::get)
             .forEach(team -> messages.add(
-                format("Team %s (%s) fjernet fra databasen", team.id, team.name)
-            ));
+                format("Team %s (%s) fjernet fra databasen", team.id, team.name))
+            );
 
         if (teamMap.size() > 0 && storedMap.size() > 0)
             teamMap.values().forEach(
@@ -66,7 +69,7 @@ public class HomeMatchProcessor implements Processor {
 
     private void detectChanges(Team newTeam, Team oldTeam, ArrayList<String> messages) {
 
-        if( oldTeam == null)
+        if (oldTeam == null)
             messages.add(format("Team %s (%s) lagt til i databasen", newTeam.id, newTeam.name));
         else {
 
@@ -77,10 +80,14 @@ public class HomeMatchProcessor implements Processor {
 
             oldTeam.matches.values().stream()
                 .filter(match -> !newTeam.matches.containsKey(match.uid))
-                .forEach(match -> messages.add(format(
-                    "Fjernet kamp for %s (%s): \n  %s\n  %s",
-                    newTeam.id, newTeam.name, match.url, match.toString()
-                    ))
+                .forEach(match -> {
+                    if(isMatchpageActive(match))
+                        newTeam.matches.put(match.uid, match);
+                    else
+                        messages.add(format(
+                            "Fjernet kamp for %s (%s): \n  %s\n  %s",
+                            newTeam.id, newTeam.name, match.url, match.toString()));
+                    }
                 );
         }
     }
@@ -117,4 +124,8 @@ public class HomeMatchProcessor implements Processor {
             return empty();
     }
 
+
+    private boolean isMatchpageActive(Match match) {
+        return fotballNo.target(match.url).request().get().getStatus() == 200;
+    }
 }
